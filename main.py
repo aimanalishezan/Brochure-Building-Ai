@@ -34,6 +34,7 @@ class Website:
     def get_contents(self):
         return f"Webpage Title:\n{self.title}\nWebpage Contents:\n{self.text}\n\n"
     
+#figure out which links are relevant   
 #this is call one shot prompting where you give example to the model 
 link_system_prompt = "You are provided with a list of links found on a webpage. \
 You are able to decide which of the links would be most relevant to include in a brochure about the company, \
@@ -66,3 +67,41 @@ def get_links(url):
                          )
     result=response.choices[0].message.content
     return json.loads(result)
+#Second step: make the brochure
+
+def get_all_details(url):
+    result="Landing page:\n"
+    result+=Website(url).get_contents()
+    links=get_links(url)
+    print("found links",links)
+    for link in links["links"]:
+        result += f"\n\n{link['type']}\n"
+        result += Website(link["url"]).get_contents()
+    return result
+system_prompt = "You are an assistant that analyzes the contents of several relevant pages from a company website \
+and creates a short brochure about the company for prospective customers, investors and recruits. Respond in markdown.\
+Include details of company culture, customers and careers/jobs if you have the information."
+
+# Or uncomment the lines below for a more humorous brochure - this demonstrates how easy it is to incorporate 'tone':
+
+# system_prompt = "You are an assistant that analyzes the contents of several relevant pages from a company website \
+# and creates a short humorous, entertaining, jokey brochure about the company for prospective customers, investors and recruits. Respond in markdown.\
+# Include details of company culture, customers and careers/jobs if you have the information."
+
+def get_brochure_user_prompt(company_name, url):
+    user_prompt = f"You are looking at a company called: {company_name}\n"
+    user_prompt += f"Here are the contents of its landing page and other relevant pages; use this information to build a short brochure of the company in markdown.\n"
+    user_prompt += get_all_details(url)
+    user_prompt = user_prompt[:5_000] # Truncate if more than 5,000 characters
+    return user_prompt
+
+def create_brochure(company_name, url):
+    response = ollama.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": get_brochure_user_prompt(company_name, url)}
+          ],
+    )
+    result = response.choices[0].message.content
+create_brochure("Aiman", "https://aiman-portfolio-mu.vercel.app/")
