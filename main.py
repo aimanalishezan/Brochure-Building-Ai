@@ -3,7 +3,7 @@ import json
 from typing import List
 from bs4 import BeautifulSoup
 import ollama
-
+from urllib.parse import urljoin
 MODEL = "CognitiveComputations/dolphin-llama3.1"
 
 headers = {
@@ -55,22 +55,32 @@ def get_links(url):
         messages=[
             {"role": "system", "content": link_system_prompt},
             {"role": "user", "content": get_links_user_prompt(website)}
-        ],
-        response_format={"type": "json_object"}
+        ]
     )
+
     result = response['message']['content']
-    return json.loads(result)
+    
+    # Convert response to JSON safely
+    try:
+        return json.loads(result)
+    except json.JSONDecodeError:
+        print("Error: Could not parse JSON response from the model.")
+        return {"links": []}  # Return empty links list if parsing fails
+
 
 def get_all_details(url):
     result = "Landing page:\n"
     result += Website(url).get_contents()
     links = get_links(url)
+    
     print("Found links:", links)
-    for link in links["links"]:
-        result += f"\n\n{link['type']}\n"
-        result += Website(link["url"]).get_contents()
-    return result
 
+    for link in links["links"]:
+        absolute_url = urljoin(url, link["url"])  # Convert relative URL to absolute
+        result += f"\n\n{link['type']}\n"
+        result += Website(absolute_url).get_contents()  # Use absolute URL
+
+    return result
 system_prompt = """
 You are an assistant analyzing a company website and creating a short brochure
 for prospective customers, investors, and recruits. Respond in markdown format.
