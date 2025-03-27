@@ -6,16 +6,11 @@ import ollama
 
 MODEL = "CognitiveComputations/dolphin-llama3.1"
 
-# Some websites need you to use proper headers when fetching them:
 headers = {
- "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
 }
 
 class Website:
-    """
-    A utility class to represent a Website that we have scraped, now with links
-    """
-
     def __init__(self, url):
         self.url = url
         response = requests.get(url, headers=headers)
@@ -33,75 +28,73 @@ class Website:
 
     def get_contents(self):
         return f"Webpage Title:\n{self.title}\nWebpage Contents:\n{self.text}\n\n"
-    
-#figure out which links are relevant   
-#this is call one shot prompting where you give example to the model 
-link_system_prompt = "You are provided with a list of links found on a webpage. \
-You are able to decide which of the links would be most relevant to include in a brochure about the company, \
-such as links to an About page, or a Company page, or Careers/Jobs pages.\n"
-link_system_prompt += "You should respond in JSON as in this example:"
-link_system_prompt += """
+
+link_system_prompt = """
+You are provided with a list of links found on a webpage.
+You must decide which links would be relevant for a company brochure,
+such as 'About', 'Company', or 'Careers/Jobs' pages.
+
+Respond in JSON format like this:
 {
     "links": [
-        {"type": "about page", "url": "https://full.url/goes/here/about"},
-        {"type": "careers page": "url": "https://another.full.url/careers"}
+        {"type": "about page", "url": "https://example.com/about"},
+        {"type": "careers page", "url": "https://example.com/careers"}
     ]
 }
 """
+
 def get_links_user_prompt(website):
-    user_prompt = f"Here is the list of links on the website of {website.url} - "
-    user_prompt += "please decide which of these are relevant web links for a brochure about the company, respond with the full https URL in JSON format. \
-Do not include Terms of Service, Privacy, email links.\n"
-    user_prompt += "Links (some might be relative links):\n"
+    user_prompt = f"Here is the list of links on {website.url}. Please determine which are relevant for a company brochure. Respond in JSON format.\n\n"
     user_prompt += "\n".join(website.links)
     return user_prompt
 
 def get_links(url):
-    website=Website(url)
-    response=ollama.chat(model=MODEL,
-                         messages=[
-                            {"role": "system", "content": link_system_prompt},
-                            {"role": "user", "content": get_links_user_prompt(website)}
-                         ],
-                          response_format={"type":"json_object"}
-                         )
-    result=response.choices[0].message.content
+    website = Website(url)
+    response = ollama.chat(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": link_system_prompt},
+            {"role": "user", "content": get_links_user_prompt(website)}
+        ],
+        response_format={"type": "json_object"}
+    )
+    result = response['message']['content']
     return json.loads(result)
-#Second step: make the brochure
 
 def get_all_details(url):
-    result="Landing page:\n"
-    result+=Website(url).get_contents()
-    links=get_links(url)
-    print("found links",links)
+    result = "Landing page:\n"
+    result += Website(url).get_contents()
+    links = get_links(url)
+    print("Found links:", links)
     for link in links["links"]:
         result += f"\n\n{link['type']}\n"
         result += Website(link["url"]).get_contents()
     return result
-system_prompt = "You are an assistant that analyzes the contents of several relevant pages from a company website \
-and creates a short brochure about the company for prospective customers, investors and recruits. Respond in markdown.\
-Include details of company culture, customers and careers/jobs if you have the information."
 
-# Or uncomment the lines below for a more humorous brochure - this demonstrates how easy it is to incorporate 'tone':
+system_prompt = """
+You are an assistant analyzing a company website and creating a short brochure
+for prospective customers, investors, and recruits. Respond in markdown format.
 
-# system_prompt = "You are an assistant that analyzes the contents of several relevant pages from a company website \
-# and creates a short humorous, entertaining, jokey brochure about the company for prospective customers, investors and recruits. Respond in markdown.\
-# Include details of company culture, customers and careers/jobs if you have the information."
+Include details about company culture, customers, and careers/jobs if available.
+"""
 
 def get_brochure_user_prompt(company_name, url):
-    user_prompt = f"You are looking at a company called: {company_name}\n"
-    user_prompt += f"Here are the contents of its landing page and other relevant pages; use this information to build a short brochure of the company in markdown.\n"
+    user_prompt = f"Company Name: {company_name}\n\n"
+    user_prompt += "Here are the contents of its landing page and relevant pages:\n"
     user_prompt += get_all_details(url)
-    user_prompt = user_prompt[:5_000] # Truncate if more than 5,000 characters
-    return user_prompt
+    return user_prompt[:5000]
 
 def create_brochure(company_name, url):
-    response = ollama.chat.completions.create(
+    response = ollama.chat(
         model=MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": get_brochure_user_prompt(company_name, url)}
-          ],
+        ]
     )
-    result = response.choices[0].message.content
+    result = response['message']['content']
+    print("\nGenerated Brochure:\n")
+    print(result)
+
+# Run the script
 create_brochure("Aiman", "https://aiman-portfolio-mu.vercel.app/")
