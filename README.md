@@ -1,4 +1,3 @@
-Absolutely! Here's a **professional and visually engaging `README.md`** for your **Web Scraping + Brochure Generator using Ollama** project, with markdown formatting and a spot to drop your workflow diagram image (`workflow_diagram.png`):
 
 ---
 
