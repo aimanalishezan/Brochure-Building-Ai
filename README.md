@@ -107,22 +107,3 @@ Feel free to use, modify, and distribute!
 📫 [aimanalishezanbusiness@gmail.com](mailto:aimanalishezanbusiness@gmail.com)
 
 ---
-
-## 💡 Tip
-
-Want to convert the markdown brochure to PDF or styled HTML?  
-Use any markdown converter like **Markdown to PDF** extensions or `pandoc`.
-
----
-
-🌟 _If you find this project useful, feel free to star it and share it!_
-```
-
----
-
-Let me know if you want:
-- The `requirements.txt` generated
-- PDF export of brochures
-- Docker support
-
-Or I can even help you deploy this as a **web tool**.
